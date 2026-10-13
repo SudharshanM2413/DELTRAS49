@@ -1,38 +1,47 @@
 import { PrismaClient } from '@prisma/client';
 import { hash } from 'bcryptjs';
-import { v4 as uuid } from 'uuid';
 
 const prisma = new PrismaClient();
 
 async function main() {
   console.log('🌱 Seeding database...\n');
 
-  // Clear existing data
-  await prisma.review.deleteMany();
-  await prisma.orderItem.deleteMany();
-  await prisma.order.deleteMany();
-  await prisma.product.deleteMany();
-  await prisma.user.deleteMany();
-
   // Create admin user
   const adminPassword = await hash('admin123', 12);
-  const admin = await prisma.user.create({
-    data: {
-      id: uuid(),
+  await prisma.user.upsert({
+    where: { email: 'admin@threadcraft.com' },
+    update: {
+      name: 'Store Owner',
+      password: adminPassword,
+      role: 'ADMIN',
+      phone: '+1 555 000 0001',
+    },
+    create: {
       name: 'Store Owner',
       email: 'admin@threadcraft.com',
       password: adminPassword,
       role: 'ADMIN',
       phone: '+1 555 000 0001',
-    },
+    }
   });
   console.log('✅ Admin user created: admin@threadcraft.com / admin123');
 
   // Create customer user
   const customerPassword = await hash('customer123', 12);
-  const customer = await prisma.user.create({
-    data: {
-      id: uuid(),
+  const customer = await prisma.user.upsert({
+    where: { email: 'john@example.com' },
+    update: {
+      name: 'John Doe',
+      password: customerPassword,
+      role: 'CUSTOMER',
+      phone: '+1 555 000 0002',
+      address: '456 Oak Avenue',
+      city: 'Los Angeles',
+      state: 'CA',
+      zip: '90001',
+      country: 'US',
+    },
+    create: {
       name: 'John Doe',
       email: 'john@example.com',
       password: customerPassword,
@@ -43,7 +52,7 @@ async function main() {
       state: 'CA',
       zip: '90001',
       country: 'US',
-    },
+    }
   });
   console.log('✅ Customer user created: john@example.com / customer123');
 
@@ -156,21 +165,21 @@ async function main() {
   ];
 
   for (const product of products) {
-    await prisma.product.create({
-      data: {
-        id: uuid(),
-        ...product,
-      },
-    });
+    const existing = await prisma.product.findFirst({ where: { name: product.name } });
+    if (existing) {
+      await prisma.product.update({ where: { id: existing.id }, data: product });
+    } else {
+      await prisma.product.create({ data: product });
+    }
   }
   console.log(`✅ ${products.length} products created`);
 
   // Create a sample order
-  const firstProduct = await prisma.product.findFirst();
+  const firstProduct = await prisma.product.findFirst({ where: { name: 'Classic Black Tee' } });
   if (firstProduct) {
-    const order = await prisma.order.create({
+    const existingOrder = await prisma.order.findFirst({ where: { paymentId: 'demo_pay_001' } });
+    if (!existingOrder) await prisma.order.create({
       data: {
-        id: uuid(),
         userId: customer.id,
         status: 'DELIVERED',
         total: 35.06,
@@ -190,7 +199,6 @@ async function main() {
         shippingCountry: 'US',
         items: {
           create: {
-            id: uuid(),
             productId: firstProduct.id,
             name: firstProduct.name,
             image: JSON.parse(firstProduct.images)[0] || '',
@@ -202,7 +210,7 @@ async function main() {
         },
       },
     });
-    console.log('✅ Sample order created');
+    if (!existingOrder) console.log('✅ Sample order created');
   }
 
   console.log('\n🎉 Database seeded successfully!');

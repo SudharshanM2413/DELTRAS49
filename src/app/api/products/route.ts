@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { verifyToken } from '@/lib/auth';
 import { cookies } from 'next/headers';
+import { parseStringArray, serializeProduct } from '@/lib/products';
+import { Prisma } from '@prisma/client';
 
 export async function GET(request: NextRequest) {
   try {
@@ -10,13 +12,13 @@ export async function GET(request: NextRequest) {
     const featured = searchParams.get('featured');
     const search = searchParams.get('search');
     const sort = searchParams.get('sort');
-    const all = searchParams.get('all');
+    const allRequested = searchParams.get('all') === 'true';
+    const token = allRequested ? cookies().get('auth-token')?.value : null;
+    const decoded = token ? await verifyToken(token) : null;
+    const showAll = allRequested && decoded?.role === 'ADMIN';
 
-    const where: any = {};
-
-    if (all !== 'true') {
-      where.published = true;
-    }
+    const where: Prisma.ProductWhereInput = {};
+    if (!showAll) where.published = true;
 
     if (category) {
       where.category = category;
@@ -33,7 +35,7 @@ export async function GET(request: NextRequest) {
       ];
     }
 
-    let orderBy: any = { createdAt: 'desc' };
+    let orderBy: Prisma.ProductOrderByWithRelationInput = { createdAt: 'desc' };
     
     if (sort === 'price-asc') orderBy = { price: 'asc' };
     else if (sort === 'price-desc') orderBy = { price: 'desc' };
@@ -45,12 +47,7 @@ export async function GET(request: NextRequest) {
       orderBy
     });
 
-    const products = productsRaw.map((p: any) => ({
-      ...p,
-      images: JSON.parse(p.images as string),
-      sizes: JSON.parse(p.sizes as string),
-      colors: JSON.parse(p.colors as string)
-    }));
+    const products = productsRaw.map(serializeProduct);
 
     return NextResponse.json(products);
   } catch (error) {
@@ -72,32 +69,46 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { name, description, price, originalPrice, images, sizes, colors, category, stock, published, featured } = body;
 
+    if (typeof name !== 'string' || !name.trim() ||
+        typeof description !== 'string' || !description.trim() ||
+        typeof category !== 'string' || !category.trim() ||
+        typeof price !== 'number' || !Number.isFinite(price) || price < 0 ||
+        (originalPrice !== undefined && originalPrice !== null &&
+          (typeof originalPrice !== 'number' || !Number.isFinite(originalPrice) || originalPrice < 0)) ||
+        !Number.isInteger(stock) || stock < 0 ||
+        (published !== undefined && typeof published !== 'boolean') ||
+        (featured !== undefined && typeof featured !== 'boolean')) {
+      return NextResponse.json({ error: 'Invalid product details' }, { status: 400 });
+    }
+
+    const normalizedImages = parseStringArray(images);
+    const normalizedSizes = parseStringArray(sizes);
+    const normalizedColors = parseStringArray(colors);
+    if (normalizedImages.length === 0 || normalizedSizes.length === 0 || normalizedColors.length === 0) {
+      return NextResponse.json({ error: 'Products require at least one image, size, and color' }, { status: 400 });
+    }
     const product = await prisma.product.create({
       data: {
-        name,
-        description,
+        name: name.trim(),
+        description: description.trim(),
         price,
         originalPrice,
-        images: JSON.stringify(images || []),
-        sizes: JSON.stringify(sizes || []),
-        colors: JSON.stringify(colors || []),
-        category,
-        stock: stock || 0,
+        images: JSON.stringify(normalizedImages),
+        sizes: JSON.stringify(normalizedSizes),
+        colors: JSON.stringify(normalizedColors),
+        category: category.trim(),
+        stock,
         published: published ?? true,
         featured: featured ?? false
       }
     });
 
-    const parsedProduct = {
-      ...product,
-      images: JSON.parse(product.images as string),
-      sizes: JSON.parse(product.sizes as string),
-      colors: JSON.parse(product.colors as string)
-    };
-
-    return NextResponse.json({ product: parsedProduct }, { status: 201 });
+    return NextResponse.json({ product: serializeProduct(product) }, { status: 201 });
   } catch (error) {
     console.error('Error creating product:', error);
+    if (error instanceof Error && error.message === 'Invalid product list data') {
+      return NextResponse.json({ error: error.message }, { status: 400 });
+    }
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }

@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { DollarSign, ShoppingBag, Users, Package, Eye, Plus, ArrowRight } from 'lucide-react';
-import { formatPrice, formatDate, getStatusColor } from '@/lib/utils';
+import { formatPrice, getStatusColor } from '@/lib/utils';
 import { Order } from '@/types';
 
 interface DashboardStats {
@@ -11,6 +11,7 @@ interface DashboardStats {
   totalOrders: number;
   totalCustomers: number;
   totalProducts: number;
+  monthlyRevenue: { month: string; revenue: number }[];
 }
 
 export default function AdminDashboard() {
@@ -19,6 +20,7 @@ export default function AdminDashboard() {
     totalOrders: 0,
     totalCustomers: 0,
     totalProducts: 0,
+    monthlyRevenue: [],
   });
   const [recentOrders, setRecentOrders] = useState<Order[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -26,19 +28,12 @@ export default function AdminDashboard() {
   useEffect(() => {
     const fetchDashboardData = async () => {
       try {
-        const [statsRes, ordersRes] = await Promise.all([
-          fetch('/api/admin/stats'),
-          fetch('/api/orders?limit=10')
-        ]);
+        const statsRes = await fetch('/api/admin/stats');
         
         if (statsRes.ok) {
-          const statsData = await statsRes.json();
+          const { stats: statsData } = await statsRes.json();
           setStats(statsData);
-        }
-        
-        if (ordersRes.ok) {
-          const ordersData = await ordersRes.json();
-          setRecentOrders(ordersData.orders || ordersData);
+          setRecentOrders(statsData.recentOrders);
         }
       } catch (error) {
         console.error('Failed to fetch dashboard data', error);
@@ -61,9 +56,7 @@ export default function AdminDashboard() {
     { title: 'Total Products', value: stats.totalProducts.toString(), icon: Package, color: 'text-orange-600', bgColor: 'bg-orange-100' },
   ];
 
-  // Placeholder monthly revenue data
-  const chartData = [40, 60, 45, 80, 55, 90, 75, 100, 85, 110, 95, 120];
-  const maxVal = Math.max(...chartData);
+  const maxVal = Math.max(...stats.monthlyRevenue.map((month) => month.revenue), 1);
 
   return (
     <div className="space-y-8 animate-fade-in">
@@ -105,20 +98,20 @@ export default function AdminDashboard() {
         <div className="card p-6 lg:col-span-2">
           <h3 className="text-lg font-bold text-gray-900 mb-6">Revenue Overview</h3>
           <div className="h-64 flex items-end justify-between gap-2">
-            {chartData.map((val, i) => (
-              <div key={i} className="w-full flex flex-col items-center gap-2 group relative">
+            {stats.monthlyRevenue.map(({ month, revenue }) => (
+              <div key={month} className="w-full flex flex-col items-center gap-2 group relative">
                 {/* Tooltip */}
                 <div className="opacity-0 group-hover:opacity-100 absolute -top-10 bg-gray-900 text-white text-xs py-1 px-2 rounded transition-opacity whitespace-nowrap z-10">
-                  ${(val * 100).toFixed(0)}
+                  {formatPrice(revenue)}
                 </div>
                 {/* Bar */}
                 <div 
                   className="w-full bg-brand-500/20 group-hover:bg-brand-500 rounded-t-sm transition-colors duration-300"
-                  style={{ height: `${(val / maxVal) * 100}%` }}
+                  style={{ height: `${(revenue / maxVal) * 100}%` }}
                 ></div>
                 {/* Label */}
                 <span className="text-xs text-gray-400 font-medium hidden sm:block">
-                  {['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][i]}
+                  {new Date(`${month}-01T00:00:00`).toLocaleDateString(undefined, { month: 'short' })}
                 </span>
               </div>
             ))}

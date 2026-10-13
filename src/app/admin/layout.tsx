@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { LayoutDashboard, Package, ShoppingBag, Users, Settings, LogOut, ArrowLeft, Menu, X } from 'lucide-react';
+import { LayoutDashboard, Package, ShoppingBag, Users, LogOut, ArrowLeft, Menu, X } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
@@ -43,12 +43,11 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     { name: 'Products', href: '/admin/products', icon: Package },
     { name: 'Orders', href: '/admin/orders', icon: ShoppingBag },
     { name: 'Customers', href: '/admin/customers', icon: Users },
-    { name: 'Settings', href: '/admin/settings', icon: Settings },
   ];
 
   const handleLogout = async () => {
     try {
-      await fetch('/api/auth/logout', { method: 'POST' });
+      await fetch('/api/auth/login', { method: 'DELETE' });
       toast.success('Logged out successfully');
       router.push('/login');
     } catch (error) {

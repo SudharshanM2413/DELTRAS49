@@ -9,9 +9,13 @@
     "lint": "next lint",
     "db:generate": "npx prisma generate",
     "db:push": "npx prisma db push",
-    "db:seed": "npx tsx prisma/seed.ts",
+    "db:seed": "npx prisma db seed",
     "db:studio": "npx prisma studio",
-    "setup": "npx prisma generate && npx prisma db push && npx tsx prisma/seed.ts"
+    "db:setup": "npm run db:generate && npm run db:push && npm run db:seed",
+    "setup": "npm run db:setup"
+  },
+  "prisma": {
+    "seed": "tsx prisma/seed.ts"
   },
   "dependencies": {
     "next": "^14.2.15",

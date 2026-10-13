@@ -3,6 +3,8 @@ import { prisma } from '@/lib/prisma';
 import { verifyToken } from '@/lib/auth';
 import { cookies } from 'next/headers';
 
+export const dynamic = 'force-dynamic';
+
 export async function GET(request: NextRequest) {
   try {
     const token = cookies().get('auth-token')?.value;
@@ -30,6 +32,7 @@ export async function GET(request: NextRequest) {
 
     const allOrders = await prisma.order.findMany({
       where: {
+        paymentStatus: 'PAID',
         createdAt: {
           gte: new Date(new Date().setMonth(new Date().getMonth() - 6))
         }
@@ -47,7 +50,7 @@ export async function GET(request: NextRequest) {
       monthlyData[monthYear] = 0;
     }
 
-    allOrders.forEach((order: any) => {
+    allOrders.forEach((order) => {
       const d = new Date(order.createdAt);
       const monthYear = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
       if (monthlyData[monthYear] !== undefined) {
@@ -60,12 +63,11 @@ export async function GET(request: NextRequest) {
       revenue
     }));
 
-    const recentOrders = recentOrdersRaw.map((order: any) => ({
+    const recentOrders = recentOrdersRaw.map((order) => ({
       ...order,
-      items: order.items.map((item: any) => ({
-        ...item,
-        productImages: item.productImages ? JSON.parse(item.productImages as string) : []
-      }))
+      customerName: order.user.name,
+      customerEmail: order.user.email,
+      totalAmount: order.total
     }));
 
     const stats = {

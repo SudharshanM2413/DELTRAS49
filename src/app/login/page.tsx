@@ -31,7 +31,10 @@ export default function LoginPage() {
       }
 
       toast.success('Login successful!');
-      if (data.user?.role === 'ADMIN') {
+      const redirect = new URLSearchParams(window.location.search).get('redirect');
+      if (redirect?.startsWith('/') && !redirect.startsWith('//')) {
+        router.push(redirect);
+      } else if (data.user?.role === 'ADMIN') {
         router.push('/admin');
       } else {
         router.push('/');
@@ -44,7 +47,7 @@ export default function LoginPage() {
   };
 
   const handleDemoAdmin = () => {
-    setEmail('admin@deltras49.com');
+    setEmail('admin@threadcraft.com');
     setPassword('admin123');
   };
 

@@ -7,10 +7,11 @@ import { User, Package, Settings, CreditCard, Calendar, Loader2, Save, ArrowRigh
 import toast from 'react-hot-toast';
 import { formatPrice, formatDate, getStatusColor } from '@/lib/utils';
 import { Order } from '@/types';
+import type { User as UserType } from '@/types';
 
 export default function AccountPage() {
   const router = useRouter();
-  const [user, setUser] = useState<any>(null);
+  const [user, setUser] = useState<UserType | null>(null);
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('orders');
@@ -53,7 +54,7 @@ export default function AccountPage() {
           address: data.user.address || '',
           city: data.user.city || '',
           state: data.user.state || '',
-          zipCode: data.user.zipCode || '',
+          zipCode: data.user.zip || '',
           country: data.user.country || ''
         });
 
@@ -61,7 +62,7 @@ export default function AccountPage() {
         const ordersRes = await fetch('/api/orders');
         if (ordersRes.ok) {
           const ordersData = await ordersRes.json();
-          setOrders(ordersData);
+          setOrders(ordersData.orders || []);
         }
       } catch (error) {
         toast.error('Failed to load account details');
@@ -87,7 +88,8 @@ export default function AccountPage() {
       if (!res.ok) throw new Error('Failed to update profile');
       
       toast.success('Profile updated successfully');
-      setUser({ ...user, ...profileData });
+      const updatedUser = await res.json();
+      setUser(updatedUser.user);
     } catch (error: any) {
       toast.error(error.message);
     } finally {

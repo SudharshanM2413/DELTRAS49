@@ -27,7 +27,7 @@ export default function CheckoutPage() {
     country: 'US',
   });
   
-  const [paymentMethod, setPaymentMethod] = useState('card');
+  const [paymentMethod, setPaymentMethod] = useState('credit_card');
   const [promoCode, setPromoCode] = useState('');
 
   useEffect(() => {
@@ -52,16 +52,45 @@ export default function CheckoutPage() {
     setIsSubmitting(true);
     
     try {
-      // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 1500));
-      
-      const generatedOrderId = `ORD-${Math.floor(100000 + Math.random() * 900000)}`;
-      setOrderId(generatedOrderId);
+      const response = await fetch('/api/orders', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          items: items.map(({ productId, quantity, size, color, customDesign }) => ({
+            productId,
+            quantity,
+            size,
+            color,
+            customDesign
+          })),
+          shippingInfo: {
+            name: formData.fullName,
+            email: formData.email,
+            phone: formData.phone,
+            address: formData.address,
+            city: formData.city,
+            state: formData.state,
+            zip: formData.zipCode,
+            country: formData.country
+          },
+          paymentMethod
+        })
+      });
+      const data = await response.json();
+      if (response.status === 401) {
+        router.push('/login?redirect=/checkout');
+        return;
+      }
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to place order');
+      }
+
+      setOrderId(data.order.id);
       setIsSuccess(true);
       clearCart();
       window.scrollTo({ top: 0, behavior: 'smooth' });
     } catch (error) {
-      toast.error('Failed to process order. Please try again.');
+      toast.error(error instanceof Error ? error.message : 'Failed to process order. Please try again.');
     } finally {
       setIsSubmitting(false);
     }
@@ -80,8 +109,8 @@ export default function CheckoutPage() {
         </p>
         
         <div className="flex gap-4">
-          <Link href="/orders" className="btn-secondary">
-            View Orders
+          <Link href={`/account/orders/${orderId}`} className="btn-secondary">
+            View Order
           </Link>
           <Link href="/shop" className="btn-primary">
             Continue Shopping
@@ -164,30 +193,16 @@ export default function CheckoutPage() {
               
               <div className="space-y-4">
                 {/* Credit Card Option */}
-                <label className={`block border rounded-xl p-4 cursor-pointer transition-colors ${paymentMethod === 'card' ? 'border-brand-500 bg-red-50' : 'border-gray-200 hover:border-brand-300'}`}>
+                <label className={`block border rounded-xl p-4 cursor-pointer transition-colors ${paymentMethod === 'credit_card' ? 'border-brand-500 bg-red-50' : 'border-gray-200 hover:border-brand-300'}`}>
                   <div className="flex items-center gap-3">
-                    <input type="radio" name="payment" value="card" checked={paymentMethod === 'card'} onChange={() => setPaymentMethod('card')} className="w-4 h-4 text-brand-500 focus:ring-brand-500" />
+                    <input type="radio" name="payment" value="credit_card" checked={paymentMethod === 'credit_card'} onChange={() => setPaymentMethod('credit_card')} className="w-4 h-4 text-brand-500 focus:ring-brand-500" />
                     <span className="font-semibold text-gray-900">Credit or Debit Card</span>
                   </div>
                   
-                  {paymentMethod === 'card' && (
+                  {paymentMethod === 'credit_card' && (
                     <div className="mt-4 pt-4 border-t border-red-100 space-y-4 animate-fade-in">
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Card Number</label>
-                        <input type="text" className="input-field" placeholder="0000 0000 0000 0000" />
-                      </div>
-                      <div className="grid grid-cols-2 gap-4">
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-1">Expiry Date</label>
-                          <input type="text" className="input-field" placeholder="MM/YY" />
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-1">CVV</label>
-                          <input type="text" className="input-field" placeholder="123" />
-                        </div>
-                      </div>
                       <p className="text-xs text-gray-500 flex items-center gap-1 mt-2">
-                        <AlertCircle className="w-3 h-3" /> This is a demo. Do not enter real card details.
+                        <AlertCircle className="w-3 h-3" /> Demo checkout only. No card details are collected or charged.
                       </p>
                     </div>
                   )}
@@ -201,7 +216,7 @@ export default function CheckoutPage() {
                   </div>
                   {paymentMethod === 'paypal' && (
                     <p className="mt-4 text-sm text-gray-600 pl-7 animate-fade-in">
-                      You will be redirected to PayPal to complete your purchase securely.
+                      Demo checkout only. No PayPal transaction is initiated.
                     </p>
                   )}
                 </label>
@@ -226,10 +241,9 @@ export default function CheckoutPage() {
                     <span className="font-semibold text-gray-900">UPI</span>
                   </div>
                   {paymentMethod === 'upi' && (
-                    <div className="mt-4 pt-4 border-t border-red-100 animate-fade-in">
-                      <label className="block text-sm font-medium text-gray-700 mb-1">UPI ID</label>
-                      <input type="text" className="input-field" placeholder="username@upi" />
-                    </div>
+                      <p className="mt-4 text-sm text-gray-600 pl-7 animate-fade-in">
+                        Demo checkout only. No UPI payment request is sent.
+                      </p>
                   )}
                 </label>
               </div>

@@ -3,7 +3,13 @@ import bcrypt from 'bcryptjs';
 import { cookies } from 'next/headers';
 import { prisma } from './prisma';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'fallback-secret-key';
+function getJwtSecret(): string {
+  const secret = process.env.JWT_SECRET;
+  if (!secret) {
+    throw new Error('JWT_SECRET must be configured before starting the application');
+  }
+  return secret;
+}
 
 export interface JWTPayload {
   userId: string;
@@ -20,12 +26,19 @@ export async function verifyPassword(password: string, hashedPassword: string): 
 }
 
 export function generateToken(payload: JWTPayload): string {
-  return jwt.sign(payload, JWT_SECRET, { expiresIn: '7d' });
+  return jwt.sign(payload, getJwtSecret(), { expiresIn: '7d' });
 }
 
 export function verifyToken(token: string): JWTPayload | null {
   try {
-    return jwt.verify(token, JWT_SECRET) as JWTPayload;
+    const decoded = jwt.verify(token, getJwtSecret());
+    if (typeof decoded === 'string' ||
+        typeof decoded.userId !== 'string' ||
+        typeof decoded.email !== 'string' ||
+        typeof decoded.role !== 'string') {
+      return null;
+    }
+    return { userId: decoded.userId, email: decoded.email, role: decoded.role };
   } catch {
     return null;
   }

@@ -110,9 +110,9 @@ export default function AddProduct() {
         price: parseFloat(formData.price),
         originalPrice: formData.originalPrice ? parseFloat(formData.originalPrice) : undefined,
         stock: parseInt(formData.stock, 10),
-        images: JSON.stringify(images),
-        sizes: JSON.stringify(formData.sizes),
-        colors: JSON.stringify(formData.colors),
+        images,
+        sizes: formData.sizes,
+        colors: formData.colors,
       };
 
       const res = await fetch('/api/products', {

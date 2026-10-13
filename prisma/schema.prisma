@@ -7,3 +7,9 @@ datasource db {
   url       = "postgresql://postgres.xlnnytbzowqphbsuihyr:Deltras49@49@aws-0-ap-south-1.pooler.supabase.com"
   directUrl = "postgresql://postgres.xlnnytbzowqphbsuihyr:Deltras49@49@aws-0-ap-south-1.pooler.supabase.com"
 }
+
+model User {
+  id    Int     @id @default(autoincrement())
+  email String  @unique
+  name  String?
+}
